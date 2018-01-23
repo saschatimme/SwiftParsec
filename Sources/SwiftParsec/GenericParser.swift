@@ -992,6 +992,85 @@ where StreamType.Iterator.Element: Equatable {
     
 }
 
+public extension Parsec where StreamType == String {
+    public static func tokens(
+        nextPosition: @escaping (
+        SourcePosition, String
+        ) -> SourcePosition,
+        tokens: String,
+        tokensIterator: [String.Iterator.Element]
+        ) -> GenericParser<String, UserState, String> {
+        
+        return GenericParser(parse: { state in
+            
+            let position = state.position
+            
+            guard !tokensIterator.isEmpty else {
+                
+                let error = ParseError.unknownParseError(position)
+                return .none(.ok([], state, error))
+                
+            }
+            
+            var input = state.input
+            
+            var hasConsumed = false
+            var consumedConstructor =
+                Consumed<StreamType, UserState, StreamType>.none
+            
+            
+            for token in tokensIterator {
+                
+                guard let inputToken = input.next() else {
+                    
+                    var eofError =
+                        ParseError.unexpectedParseError(position, message: "")
+                    eofError.insertMessage(.expected(tokens))
+                    
+                    return consumedConstructor(.error(eofError))
+                    
+                }
+                
+                if token != inputToken {
+                    
+                    let tokDesc = String(inputToken)
+                    
+                    var expectedError = ParseError.unexpectedParseError(
+                        position,
+                        message: tokDesc
+                    )
+                    
+                    let expected = Message.expected(tokens)
+                    expectedError.insertMessage(expected)
+                    
+                    return consumedConstructor(.error(expectedError))
+                    
+                }
+                
+                
+                if !hasConsumed {
+                    
+                    hasConsumed = true
+                    consumedConstructor = Consumed.some
+                    
+                }
+            }
+            
+            let newPosition = nextPosition(position, tokens)
+            let newState = ParserState(
+                input: input,
+                position: newPosition,
+                userState: state.userState
+            )
+            let error = ParseError.unknownParseError(newPosition)
+            
+            return .some(.ok(tokens, newState, error))
+            
+        })
+        
+    }
+}
+
 //==============================================================================
 /// The `Consumed` enumeration indicates if a parser consumed some or none from
 /// an input.

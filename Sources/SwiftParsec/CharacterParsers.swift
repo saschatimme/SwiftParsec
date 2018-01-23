@@ -338,3 +338,28 @@ where StreamType.Iterator.Element == Character {
     }
     
 }
+
+//==============================================================================
+// Extension containing methods related to string parsing.
+public extension Parsec where StreamType == String {
+    public static func string(
+        _ str: StreamType
+        ) -> GenericParser<StreamType, UserState, StreamType> {
+        
+        return tokens(
+            nextPosition: { position, charStreamType in
+                var pos = position
+                for char in charStreamType {
+                    
+                    pos.updatePosition(char)
+                    
+                }
+                
+                return pos
+                
+            },
+            tokens: str,
+            tokensIterator: Array(str.makeIterator()))
+    }
+}
+
